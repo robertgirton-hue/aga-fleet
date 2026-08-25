@@ -13,12 +13,16 @@ packages:
   - python3.12
   - python3.12-venv
   - python3-pip
+  - pipx
   - postgresql-16
   - postgresql-contrib
   - nginx
   - ufw
   - sqlite3
   - jq
+  - ripgrep
+  - ffmpeg
+  - xz-utils
 
 users:
   - name: aga
@@ -62,7 +66,9 @@ write_files:
       User=aga
       WorkingDirectory=/opt/aga-fleet
       EnvironmentFile=/opt/aga-fleet/.env
-      ExecStart=/opt/aga-fleet/venv/bin/hermes serve --config /opt/aga-fleet/hermes.yaml
+      Environment="PATH=/home/aga/.local/bin:/home/aga/.hermes/hermes-agent/venv/bin:/usr/local/bin:/usr/bin:/bin"
+      Environment="HERMES_HOME=/home/aga/.hermes"
+      ExecStart=/home/aga/.local/bin/hermes gateway run --config /opt/aga-fleet/hermes.yaml
       Restart=always
       RestartSec=10
 
@@ -80,7 +86,9 @@ write_files:
       User=aga
       WorkingDirectory=/opt/aga-fleet/memo-vault
       EnvironmentFile=/opt/aga-fleet/.env
-      ExecStart=/opt/aga-fleet/venv/bin/memo mcp serve --vault /opt/aga-fleet/memo-vault --port 4711
+      Environment="PATH=/home/aga/.local/bin:/usr/local/bin:/usr/bin:/bin"
+      Environment="MEMO_VAULT=/opt/aga-fleet/memo-vault"
+      ExecStart=/home/aga/.local/bin/memo-mcp
       Restart=always
       RestartSec=10
 
@@ -99,23 +107,28 @@ runcmd:
   - sudo -u postgres psql -d aga_fleet -c "CREATE TABLE pending_actions (id SERIAL PRIMARY KEY, bot_name TEXT NOT NULL, bucket INT NOT NULL, action_type TEXT NOT NULL, payload JSONB NOT NULL, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW(), resolved_at TIMESTAMPTZ);"
   - sudo -u postgres psql -d aga_fleet -c "CREATE TABLE run_log (id SERIAL PRIMARY KEY, bot_name TEXT NOT NULL, run_type TEXT, summary TEXT, payload JSONB, created_at TIMESTAMPTZ DEFAULT NOW());"
 
-  # Repo clone
-  - sudo -u aga mkdir -p /opt/aga-fleet
+  # Repo clone (public repo, no auth needed)
+  - install -d -o aga -g aga /opt/aga-fleet
   - sudo -u aga git clone https://github.com/robertgirton-hue/aga-fleet.git /opt/aga-fleet/repo
-  - sudo -u aga ln -s /opt/aga-fleet/repo/* /opt/aga-fleet/
+  - bash -c 'for f in /opt/aga-fleet/repo/*; do bn=$(basename "$f"); [ "$bn" = "deploy" ] && continue; ln -sfn "$f" "/opt/aga-fleet/$bn"; done'
+  - chown -R aga:aga /opt/aga-fleet
 
-  # Python venv
-  - sudo -u aga python3.12 -m venv /opt/aga-fleet/venv
-  - sudo -u aga /opt/aga-fleet/venv/bin/pip install --upgrade pip
+  # Ensure ~/.local/bin exists and is on aga's PATH
+  - sudo -u aga mkdir -p /home/aga/.local/bin
+  - sudo -u aga bash -c 'grep -q "HOME/.local/bin" /home/aga/.bashrc || echo "export PATH=\"$HOME/.local/bin:$PATH\"" >> /home/aga/.bashrc'
 
-  # Hermes (curl installer per PR #68217, no pip/brew support since Jul 2026)
-  - sudo -u aga bash -c "curl -sSL https://install.hermes.dev | HERMES_HOME=/opt/aga-fleet/hermes sh"
+  # Hermes Agent (official installer, no sudo needed - installs to ~/.local/bin)
+  - sudo -u aga -H bash -lc 'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup'
 
-  # Memo
-  - sudo -u aga /opt/aga-fleet/venv/bin/pip install jagoff-memo
+  # Memo MCP (CPU backend for Linux via pipx)
+  - sudo -u aga -H bash -lc 'pipx ensurepath && pipx install "mlx-memo[cpu]"'
 
-  # Composio
-  - sudo -u aga /opt/aga-fleet/venv/bin/pip install composio-core
+  # Composio (installed into the same pipx env as memo? no - separate pipx app)
+  - sudo -u aga -H bash -lc 'pipx install composio-core'
+
+  # Initialize Memo vault
+  - install -d -o aga -g aga /opt/aga-fleet/memo-vault
+  - sudo -u aga -H bash -lc 'cd /opt/aga-fleet/memo-vault && /home/aga/.local/bin/memo init || true'
 
   # Enable services
   - systemctl daemon-reload
