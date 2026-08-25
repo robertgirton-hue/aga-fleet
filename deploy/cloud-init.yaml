@@ -101,7 +101,7 @@ runcmd:
 
   # Repo clone
   - sudo -u aga mkdir -p /opt/aga-fleet
-  - sudo -u aga git clone https://github.com/BOB_GH_USERNAME/aga-fleet.git /opt/aga-fleet/repo
+  - sudo -u aga git clone https://github.com/robertgirton-hue/aga-fleet.git /opt/aga-fleet/repo
   - sudo -u aga ln -s /opt/aga-fleet/repo/* /opt/aga-fleet/
 
   # Python venv
