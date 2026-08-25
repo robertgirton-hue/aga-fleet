@@ -1,0 +1,53 @@
+name: pike-coo
+role: deal_execution
+skill_file: bots/pike-coo/skill.md
+model: claude-sonnet-4.5
+
+policies:
+  - policies/decision-autonomy.md
+  - policies/nomenclature.md
+  - policies/contact-tiers.md
+
+scope:
+  deal: "Project Pike - Fishman Corporation"
+  deal_type: acquisition
+  path: keybank_sba
+
+memory:
+  fluid_brain: memo://
+  own_vault_path: /opt/aga-fleet/memo-vault/pike-coo/
+  static_sot_pages:
+    - notion://projects/project-pike-fishman-corporation
+    - onedrive://Pillar A - Deal Advisory/Project Pike - Fishman Corporation/_CONTEXT.md
+
+triggers:
+  - type: telegram_message
+    routed_from: zeus
+  - type: cron
+    schedule: "0 7 * * *"
+    action: daily_scan
+  - type: email_inbound
+    from_domains:
+      - fishmancorp.com
+      - keybank.com
+      - pioneer.com
+    routed_via: zeus
+
+connectors:
+  notion: read_write_via_zeus
+  onedrive: read_write
+  outlook: read_draft_only
+  fireflies: read_only
+  todoist: read_write
+
+tier_1_contacts:
+  - name: Fernanda
+    role: Pioneer/KeyBank SBA
+  - name: Al Salvatore
+    role: Roetzel (Pike deal counsel)
+
+known_workstreams:
+  - fernanda_financial_delivery
+  - pioneer_package
+  - keybank_socialization
+  - verghese_co_invest

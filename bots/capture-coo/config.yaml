@@ -1,0 +1,44 @@
+name: capture-coo
+role: engagement_execution
+skill_file: bots/capture-coo/skill.md
+model: claude-sonnet-4.5
+
+policies:
+  - policies/decision-autonomy.md
+  - policies/nomenclature.md
+  - policies/contact-tiers.md
+
+scope:
+  engagement: "Project Capture - Clevios (Heraeus Epurio)"
+  engagement_type: strategic_evaluation
+  client: Heraeus Epurio
+
+memory:
+  fluid_brain: memo://
+  own_vault_path: /opt/aga-fleet/memo-vault/capture-coo/
+  static_sot_pages:
+    - notion://projects/clevios-strategic-evaluation
+    - onedrive://Pillar A - Deal Advisory/Project Capture - Clevios (Heraeus Epurio)/_CONTEXT.md
+
+triggers:
+  - type: telegram_message
+    routed_from: zeus
+  - type: cron
+    schedule: "0 7 * * *"
+    action: daily_scan
+  - type: email_inbound
+    from_domains:
+      - heraeus.com
+      - heraeus-epurio.com
+    routed_via: zeus
+
+tier_1_contacts:
+  - name: Clara
+    role: Heraeus Epurio SteerCo
+  - name: Bruce
+    role: Clevios MLCC SME
+
+known_workstreams:
+  - steerco_2_evidence
+  - china_sourcing_channel
+  - capacitor_residuals

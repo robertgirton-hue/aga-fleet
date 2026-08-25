@@ -1,0 +1,74 @@
+name: zeus
+role: chief_of_staff
+model: claude-sonnet-4.5  # placeholder - Bob can swap
+skill_file: bots/zeus/skill.md
+
+policies:
+  - policies/decision-autonomy.md
+  - policies/nomenclature.md
+  - policies/contact-tiers.md
+
+memory:
+  fluid_brain: memo://
+  static_sot:
+    notion: true
+    onedrive: true
+  own_vault_path: /opt/aga-fleet/memo-vault/zeus/
+
+triggers:
+  - type: telegram_message
+    from_user: bob_girton
+  - type: postgres_notify
+    channel: pending_actions_new
+  - type: cron
+    schedule: "*/1 * * * *"  # heartbeat every minute; noop if nothing pending
+  - type: cron
+    schedule: "30 6 * * *"    # 6:30am ET daily morning brief
+    action: morning_brief
+  - type: cron
+    schedule: "0 16 * * 5"    # 4pm ET Friday
+    action: weekly_promote
+
+connectors:
+  telegram:
+    bot_username: "@AugustGraceAdvisory_Bot"
+    bot_token_env: TELEGRAM_ZEUS_BOT_TOKEN  # paste in droplet .env, not in this repo
+    allowlist_user_ids:
+      - BOB_TELEGRAM_USER_ID  # paste in droplet .env
+    # Bob's other Telegram bots (@CJ_PressMaster_AGABot, @AGA_Perplexity_Bot) remain in place
+    # as specialist tools; Zeus does not intercept their surfaces.
+  notion: read_write
+  onedrive: read_write
+  attio: read_write
+  todoist: read_write
+  gmail: read_draft_only
+  outlook: read_draft_only
+  gcal: read_write
+  fireflies: read_only
+  github:
+    repo: aga-fleet
+    write_paths:
+      - bots/*/config.yaml
+      - policies/*.md  # only under Bucket 3 confirmation
+  comet_bridge:
+    device: FF61E1DA-281F-5BE2-92A9-FF1EA2E6EB99  # Bob's MacBook Air
+
+notification_policy:
+  batch_window_seconds: 300  # 5 min max between messages
+  quiet_hours:
+    start: "22:00"
+    end: "06:00"
+    tz: America/New_York
+    override_for:
+      - tier_0_emergency
+      - bucket_3_deadline_before_6am
+
+fleet_routing:
+  rbb-coo: rbb_wooster_topics
+  pike-coo: pike_fishman_topics
+  co-orchestrator: newsletter_curiously_optimistic_topics
+  cie-architect: commercial_intelligence_engine_topics
+  capture-coo: clevios_heraeus_topics
+  network-intel: relationships_intros_attio_topics
+  hawken-family: family_school_ops_topics
+  dac-chair: dac_akron_topics

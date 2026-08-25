@@ -1,0 +1,46 @@
+name: co-orchestrator
+role: newsletter_ops
+skill_file: bots/co-orchestrator/skill.md
+model: claude-sonnet-4.5
+
+policies:
+  - policies/decision-autonomy.md
+  - policies/nomenclature.md
+
+scope:
+  publication: Curiously Optimistic
+  platforms:
+    - substack
+    - buffer
+    - narrareach
+    - pressmaster
+
+memory:
+  fluid_brain: memo://
+  own_vault_path: /opt/aga-fleet/memo-vault/co-orchestrator/
+  static_sot_pages:
+    - notion://projects/aga-newsletter-curiously-optimistic
+    - notion://projects/curiously-optimistic-operating-system
+
+triggers:
+  - type: telegram_message
+    routed_from: zeus
+  - type: cron
+    schedule: "0 8 * * 1,3,5"  # M/W/F 8am ET publishing rhythm scan
+    action: publishing_cadence_check
+
+connectors:
+  telegram:
+    bot_username: "@CJ_PressMaster_AGABot"
+    bot_token_env: TELEGRAM_PRESSMASTER_BOT_TOKEN
+  notion: read_write_via_zeus
+  substack: draft_only  # publish is Bucket 3
+  buffer: draft_only    # post is Bucket 3
+  narrareach: draft_only
+  pressmaster: draft_only
+  gmail: read_draft_only
+
+bucket_overrides:
+  substack_publish: bucket_3
+  buffer_post: bucket_3
+  narrareach_post: bucket_3

@@ -1,0 +1,48 @@
+name: hawken-family
+role: family_ops
+skill_file: bots/hawken-family/skill.md
+model: claude-sonnet-4.5
+
+policies:
+  - policies/decision-autonomy.md
+  - policies/nomenclature.md
+  - policies/contact-tiers.md
+
+scope:
+  family:
+    - Missy  # wife
+    - Ava    # Hawken 5R Rao
+    - Aggie  # Hawken 1R Rosenberger
+    - Theo   # HFA Jen Noble
+  school_contacts:
+    - Rao (Hawken 5R)
+    - Rosenberger (Hawken 1R)
+    - Jen Noble (HFA)
+
+memory:
+  fluid_brain: memo://
+  own_vault_path: /opt/aga-fleet/memo-vault/hawken-family/
+
+triggers:
+  - type: telegram_message
+    routed_from: zeus
+  - type: gcal_event_change
+    calendars: [family, personal]
+    routed_via: zeus
+  - type: cron
+    schedule: "0 6 * * *"  # 6am ET daily family scan (before school)
+    action: family_scan
+
+connectors:
+  gcal: read_write
+  outlook: read_only
+  gmail: read_only
+
+hard_rules:
+  - "Never initiate outbound to Tier 0 (Missy, Ava, Aggie, Theo). Draft only."
+  - "Never make school-related decisions without Bob's Bucket 3 confirmation."
+
+bucket_overrides:
+  tier_0_message: bucket_3  # draft only
+  tier_4_routine: bucket_2  # scheduling confirmations
+  tier_4_substantive: bucket_3

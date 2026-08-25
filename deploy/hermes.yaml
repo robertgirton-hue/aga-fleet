@@ -1,0 +1,53 @@
+# Hermes runtime config for the AGA Fleet
+# Loaded by /etc/systemd/system/aga-hermes.service
+
+runtime:
+  workers: 9  # one per bot
+  concurrency: parallel  # each worker independent
+  postgres:
+    dsn: "postgresql://aga:${POSTGRES_PASSWORD}@localhost:5432/aga_fleet"
+    tables:
+      pending_actions: pending_actions
+      run_log: run_log
+
+bots:
+  # Zeus is the orchestrator - always on
+  - name: zeus
+    config: /opt/aga-fleet/bots/zeus/config.yaml
+    priority: high
+
+  # Specialists - on when triggered
+  - name: rbb-coo
+    config: /opt/aga-fleet/bots/rbb-coo/config.yaml
+  - name: pike-coo
+    config: /opt/aga-fleet/bots/pike-coo/config.yaml
+  - name: co-orchestrator
+    config: /opt/aga-fleet/bots/co-orchestrator/config.yaml
+  - name: cie-architect
+    config: /opt/aga-fleet/bots/cie-architect/config.yaml
+  - name: capture-coo
+    config: /opt/aga-fleet/bots/capture-coo/config.yaml
+  - name: network-intel
+    config: /opt/aga-fleet/bots/network-intel/config.yaml
+  - name: hawken-family
+    config: /opt/aga-fleet/bots/hawken-family/config.yaml
+  - name: dac-chair
+    config: /opt/aga-fleet/bots/dac-chair/config.yaml
+
+memory:
+  fluid_brain:
+    type: memo
+    mcp_url: http://localhost:4711
+    vault_root: /opt/aga-fleet/memo-vault
+  static_sot:
+    notion:
+      via: composio
+    onedrive:
+      via: composio
+
+policies_dir: /opt/aga-fleet/policies
+
+logging:
+  level: info
+  file: /var/log/aga-fleet/hermes.log
+  rotate: daily

@@ -1,0 +1,129 @@
+#cloud-config
+# Digital Ocean cloud-init for the AGA Fleet droplet
+# Provisions Hermes runtime, Memo vault, Postgres, Composio, all nine bots
+# Ubuntu 24.04 LTS, 2 vCPU / 4 GB RAM recommended ($24/mo droplet)
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - git
+  - curl
+  - build-essential
+  - python3.12
+  - python3.12-venv
+  - python3-pip
+  - postgresql-16
+  - postgresql-contrib
+  - nginx
+  - ufw
+  - sqlite3
+  - jq
+
+users:
+  - name: aga
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: sudo
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - BOB_SSH_PUBLIC_KEY_HERE  # replaced by bootstrap.sh from Bob's Mac
+
+write_files:
+  - path: /opt/aga-fleet/.env.template
+    content: |
+      # Fleet-wide secrets - populated by bootstrap.sh, NEVER committed to git
+      TELEGRAM_ZEUS_BOT_TOKEN=
+      TELEGRAM_PRESSMASTER_BOT_TOKEN=
+      TELEGRAM_PERPLEXITY_BOT_TOKEN=
+      BOB_TELEGRAM_USER_ID=
+      COMPOSIO_API_KEY=
+      NOTION_API_KEY=
+      ONEDRIVE_ACCESS_TOKEN=
+      ATTIO_API_KEY=
+      TODOIST_API_KEY=
+      FIREFLIES_API_KEY=
+      GITHUB_PAT=
+      OPENAI_API_KEY=
+      ANTHROPIC_API_KEY=
+      PERPLEXITY_API_KEY=
+      POSTGRES_PASSWORD=
+    permissions: '0600'
+    owner: aga:aga
+
+  - path: /etc/systemd/system/aga-hermes.service
+    content: |
+      [Unit]
+      Description=AGA Fleet Hermes runtime
+      After=network.target postgresql.service
+      Requires=postgresql.service
+
+      [Service]
+      Type=simple
+      User=aga
+      WorkingDirectory=/opt/aga-fleet
+      EnvironmentFile=/opt/aga-fleet/.env
+      ExecStart=/opt/aga-fleet/venv/bin/hermes serve --config /opt/aga-fleet/hermes.yaml
+      Restart=always
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/aga-memo.service
+    content: |
+      [Unit]
+      Description=Memo fluid brain MCP server
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=aga
+      WorkingDirectory=/opt/aga-fleet/memo-vault
+      EnvironmentFile=/opt/aga-fleet/.env
+      ExecStart=/opt/aga-fleet/venv/bin/memo mcp serve --vault /opt/aga-fleet/memo-vault --port 4711
+      Restart=always
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  # Firewall
+  - ufw allow 22/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+
+  # Postgres setup
+  - sudo -u postgres psql -c "CREATE USER aga WITH PASSWORD 'CHANGE_ME_IN_BOOTSTRAP';"
+  - sudo -u postgres psql -c "CREATE DATABASE aga_fleet OWNER aga;"
+  - sudo -u postgres psql -d aga_fleet -c "CREATE TABLE pending_actions (id SERIAL PRIMARY KEY, bot_name TEXT NOT NULL, bucket INT NOT NULL, action_type TEXT NOT NULL, payload JSONB NOT NULL, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW(), resolved_at TIMESTAMPTZ);"
+  - sudo -u postgres psql -d aga_fleet -c "CREATE TABLE run_log (id SERIAL PRIMARY KEY, bot_name TEXT NOT NULL, run_type TEXT, summary TEXT, payload JSONB, created_at TIMESTAMPTZ DEFAULT NOW());"
+
+  # Repo clone
+  - sudo -u aga mkdir -p /opt/aga-fleet
+  - sudo -u aga git clone https://github.com/BOB_GH_USERNAME/aga-fleet.git /opt/aga-fleet/repo
+  - sudo -u aga ln -s /opt/aga-fleet/repo/* /opt/aga-fleet/
+
+  # Python venv
+  - sudo -u aga python3.12 -m venv /opt/aga-fleet/venv
+  - sudo -u aga /opt/aga-fleet/venv/bin/pip install --upgrade pip
+
+  # Hermes (curl installer per PR #68217, no pip/brew support since Jul 2026)
+  - sudo -u aga bash -c "curl -sSL https://install.hermes.dev | HERMES_HOME=/opt/aga-fleet/hermes sh"
+
+  # Memo
+  - sudo -u aga /opt/aga-fleet/venv/bin/pip install jagoff-memo
+
+  # Composio
+  - sudo -u aga /opt/aga-fleet/venv/bin/pip install composio-core
+
+  # Enable services
+  - systemctl daemon-reload
+  - systemctl enable aga-hermes.service
+  - systemctl enable aga-memo.service
+  # Do NOT start yet - .env must be populated by bootstrap.sh first
+
+final_message: |
+  AGA Fleet droplet provisioned.
+  Next step from Bob's Mac: ./deploy/bootstrap.sh <droplet-ip>
+  This will push .env secrets, then start Hermes + Memo services.

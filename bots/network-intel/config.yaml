@@ -1,0 +1,43 @@
+name: network-intel
+role: relationships
+skill_file: bots/network-intel/skill.md
+model: claude-sonnet-4.5
+
+policies:
+  - policies/decision-autonomy.md
+  - policies/nomenclature.md
+  - policies/contact-tiers.md
+
+scope:
+  function: network_intelligence
+  legacy_name: Penny
+  db_owner: true
+
+memory:
+  fluid_brain: memo://
+  own_vault_path: /opt/aga-fleet/memo-vault/network-intel/
+  static_sot_pages:
+    - notion://databases/aga-network-intelligence  # 7cffe2ca-7c9f-4b3c-8cb1-a4f0796a22cd
+
+triggers:
+  - type: telegram_message
+    routed_from: zeus
+  - type: fireflies_new_transcript
+    routed_via: zeus
+  - type: cron
+    schedule: "0 8 * * 1"  # Monday 8am ET weekly attio hygiene
+    action: attio_hygiene
+
+connectors:
+  notion: read_write_via_zeus
+  attio: read_write
+  fireflies: read_only
+  gmail: read_only  # for warm intro drafting
+  outlook: read_only
+  linkedin: read_only
+
+bucket_overrides:
+  warm_intro_send: bucket_3
+  attio_new_contact: bucket_2  # act + notify
+  attio_field_update: bucket_1  # act
+  network_intelligence_row_edit: bucket_3  # canonical DB
